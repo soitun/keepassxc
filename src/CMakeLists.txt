@@ -151,6 +151,7 @@ set(keepassx_SOURCES
         gui/group/GroupModel.cpp
         gui/group/GroupView.cpp
         gui/tag/TagModel.cpp
+        gui/tag/TagsEdit.cpp
         gui/databasekey/KeyComponentWidget.cpp
         gui/databasekey/PasswordEditWidget.cpp
         gui/databasekey/YubiKeyEditWidget.cpp
