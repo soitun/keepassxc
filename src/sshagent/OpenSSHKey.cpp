@@ -19,8 +19,8 @@
 #include "OpenSSHKey.h"
 
 #include "ASN1Key.h"
-#include "BinaryStream.h"
 #include "crypto/SymmetricCipher.h"
+#include "streams/BinaryStream.h"
 
 #include <QRegularExpression>
 #include <QStringList>

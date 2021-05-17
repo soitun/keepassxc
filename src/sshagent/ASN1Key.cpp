@@ -17,8 +17,8 @@
  */
 
 #include "ASN1Key.h"
-#include "BinaryStream.h"
 #include "OpenSSHKey.h"
+#include "streams/BinaryStream.h"
 
 namespace
 {

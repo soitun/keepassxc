@@ -5,7 +5,6 @@ if(WITH_XC_SSHAGENT)
         AgentSettingsPage.cpp
         AgentSettingsWidget.cpp
         ASN1Key.cpp
-        BinaryStream.cpp
         KeeAgentSettings.cpp
         OpenSSHKey.cpp
         SSHAgent.cpp

@@ -17,8 +17,8 @@
 
 #include "TestOpenSSHKey.h"
 #include "crypto/Crypto.h"
-#include "sshagent/BinaryStream.h"
 #include "sshagent/OpenSSHKey.h"
+#include "streams/BinaryStream.h"
 
 #include <QTest>
 

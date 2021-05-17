@@ -21,8 +21,8 @@
 #include "core/Config.h"
 #include "core/Group.h"
 #include "core/Metadata.h"
-#include "sshagent/BinaryStream.h"
 #include "sshagent/KeeAgentSettings.h"
+#include "streams/BinaryStream.h"
 
 #include <QFileInfo>
 #include <QLocalSocket>
