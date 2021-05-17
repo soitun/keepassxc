@@ -265,6 +265,7 @@ private:
     void openDatabaseFromEntry(const Entry* entry, bool inBackground = true);
     void performIconDownloads(const QList<Entry*>& entries, bool force = false, bool downloadInBackground = false);
     bool performSave(QString& errorMessage, const QString& fileName = {});
+    void restoreTagSidePanelSelection();
 
     QSharedPointer<Database> m_db;
 
@@ -301,6 +302,9 @@ private:
     QScopedPointer<EntrySearcher> m_entrySearcher;
     QString m_lastSearchText;
     bool m_searchLimitGroup;
+
+    // Tag filtering state
+    QString m_lastTagSelection;
 
     // Autoreload
     bool m_blockAutoSave;
