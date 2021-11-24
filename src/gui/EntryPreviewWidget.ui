@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>566</width>
-    <height>247</height>
+    <width>596</width>
+    <height>261</height>
    </rect>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout_7">
@@ -171,7 +171,7 @@
        <item>
         <widget class="QTabWidget" name="entryTabWidget">
          <property name="currentIndex">
-          <number>1</number>
+          <number>0</number>
          </property>
          <property name="documentMode">
           <bool>false</bool>
@@ -409,7 +409,7 @@
                </widget>
               </item>
               <item row="2" column="6" alignment="Qt::AlignTop">
-               <widget class="TagsEdit" name="tagsList">
+               <widget class="TagsEdit" name="entryTagsList" native="true">
                 <property name="accessibleName">
                  <string>Tags list</string>
                 </property>
@@ -1216,7 +1216,6 @@
    <class>TagsEdit</class>
    <extends>QWidget</extends>
    <header>gui/tag/TagsEdit.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <tabstops>

@@ -185,7 +185,6 @@ struct TagsEdit::Impl
             auto cornerRadius = 4;
             path.addRoundedRect(i_r, cornerRadius, cornerRadius);
             p.fillPath(path, palette.brush(QPalette::ColorGroup::Inactive, QPalette::ColorRole::Highlight));
-            
 
             // draw text
             p.drawText(text_pos, it->text);
@@ -242,7 +241,7 @@ struct TagsEdit::Impl
             calcEditorRect(lt, row, r, fm, m);
             calcRects(lt, row, r, fm, std::make_pair(m + 1, e));
         } else {
-            calcRects(lt, row, r, fm, std::make_pair(EmptySkipIterator(b, e), EmptySkipIterator(e)));
+            calcRects(lt, row, r, fm, std::make_pair(b, e));
         }
 
         r.setBottom(lt.y() + fm.height() + fm.leading() + tag_inner.top() + tag_inner.bottom() - 1);
@@ -594,7 +593,6 @@ TagsEdit::TagsEdit(QWidget* parent)
     viewport()->setCursor(Qt::IBeamCursor);
     setAttribute(Qt::WA_InputMethodEnabled, true);
     setMouseTracking(true);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
     impl->setupCompleter();
     impl->setCursorVisible(hasFocus());
@@ -648,10 +646,6 @@ void TagsEdit::focusOutEvent(QFocusEvent*)
 void TagsEdit::paintEvent(QPaintEvent*)
 {
     QPainter p(viewport());
-
-    // if (!m_readOnly) {
-    //         style()->drawPrimitive(QStyle::PE_PanelLineEdit, &panel, &p, this);
-    //    }
 
     // clip
     auto const rect = impl->contentsRect();
