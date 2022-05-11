@@ -60,9 +60,9 @@ public:
         AutoTypeHideExpiredEntry,
         GlobalAutoTypeKey,
         GlobalAutoTypeModifiers,
+        GlobalAutoTypeRetypeTime,
         FaviconDownloadTimeout,
         UpdateCheckMessageShown,
-        UseTouchID,
 
         LastDatabases,
         LastKeyFiles,
@@ -74,7 +74,6 @@ public:
         GUI_Language,
         GUI_HideToolbar,
         GUI_MovableToolbar,
-        GUI_HideGroupsPanel,
         GUI_HidePreviewPanel,
         GUI_AlwaysOnTop,
         GUI_ToolButtonStyle,
@@ -91,6 +90,8 @@ public:
         GUI_CompactMode,
         GUI_CheckForUpdates,
         GUI_CheckForUpdatesIncludeBetas,
+        GUI_ShowExpiredEntriesOnDatabaseUnlock,
+        GUI_ShowExpiredEntriesOnDatabaseUnlockOffsetDays,
 
         GUI_MainWindowGeometry,
         GUI_MainWindowState,
@@ -98,6 +99,7 @@ public:
         GUI_SearchViewState,
         GUI_PreviewSplitterState,
         GUI_SplitterState,
+        GUI_GroupSplitterState,
         GUI_AutoTypeSelectDialogSize,
         GUI_CheckForUpdatesNextCheck,
 
@@ -117,11 +119,9 @@ public:
         Security_HidePasswordPreviewPanel,
         Security_AutoTypeAsk,
         Security_IconDownloadFallback,
-        Security_ResetTouchId,
-        Security_ResetTouchIdTimeout,
-        Security_ResetTouchIdScreenlock,
         Security_NoConfirmMoveEntryToRecycleBin,
         Security_EnableCopyOnDoubleClick,
+        Security_QuickUnlock,
 
         Browser_Enabled,
         Browser_ShowNotification,

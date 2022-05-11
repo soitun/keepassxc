@@ -74,11 +74,15 @@ public:
     explicit Database(const QString& filePath);
     ~Database() override;
 
-    bool open(QSharedPointer<const CompositeKey> key, QString* error = nullptr, bool readOnly = false);
-    bool open(const QString& filePath,
-              QSharedPointer<const CompositeKey> key,
-              QString* error = nullptr,
-              bool readOnly = false);
+private:
+    bool writeDatabase(QIODevice* device, QString* error = nullptr);
+    bool backupDatabase(const QString& filePath, const QString& destinationFilePath);
+    bool restoreDatabase(const QString& filePath, const QString& fromBackupFilePath);
+    bool performSave(const QString& filePath, SaveAction flags, const QString& backupFilePath, QString* error);
+
+public:
+    bool open(QSharedPointer<const CompositeKey> key, QString* error = nullptr);
+    bool open(const QString& filePath, QSharedPointer<const CompositeKey> key, QString* error = nullptr);
     bool save(SaveAction action = Atomic, const QString& backupFilePath = QString(), QString* error = nullptr);
     bool saveAs(const QString& filePath,
                 SaveAction action = Atomic,
@@ -96,8 +100,6 @@ public:
     bool isInitialized() const;
     bool isModified() const;
     bool hasNonDataChanges() const;
-    bool isReadOnly() const;
-    void setReadOnly(bool readOnly);
     bool isSaving();
 
     QUuid uuid() const;
@@ -125,7 +127,8 @@ public:
     bool containsDeletedObject(const DeletedObject& uuid) const;
     void setDeletedObjects(const QList<DeletedObject>& delObjs);
 
-    QList<QString> commonUsernames();
+    const QStringList& commonUsernames() const;
+    const QStringList& tagList() const;
 
     QSharedPointer<const CompositeKey> key() const;
     bool setKey(const QSharedPointer<const CompositeKey>& key,
@@ -151,6 +154,7 @@ public slots:
     void markAsModified();
     void markAsClean();
     void updateCommonUsernames(int topN = 10);
+    void updateTagList();
     void markNonDataChange();
 
 signals:
@@ -166,13 +170,13 @@ signals:
     void databaseSaved();
     void databaseDiscarded();
     void databaseFileChanged();
+    void tagListUpdated();
 
 private:
     struct DatabaseData
     {
         quint32 formatVersion = 0;
         QString filePath;
-        bool isReadOnly = false;
         QUuid cipher = KeePass2::CIPHER_AES256;
         CompressionAlgorithm compressionAlgorithm = CompressionGZip;
 
@@ -210,10 +214,6 @@ private:
 
     void createRecycleBin();
 
-    bool writeDatabase(QIODevice* device, QString* error = nullptr);
-    bool backupDatabase(const QString& filePath, const QString& destinationFilePath);
-    bool restoreDatabase(const QString& filePath, const QString& fromBackupFilePath);
-    bool performSave(const QString& filePath, SaveAction flags, const QString& backupFilePath, QString* error);
     void startModifiedTimer();
     void stopModifiedTimer();
 
@@ -228,7 +228,8 @@ private:
     bool m_hasNonDataChange = false;
     QString m_keyError;
 
-    QList<QString> m_commonUsernames;
+    QStringList m_commonUsernames;
+    QStringList m_tagList;
 
     QUuid m_uuid;
     static QHash<QUuid, QPointer<Database>> s_uuidMap;

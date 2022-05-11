@@ -46,7 +46,7 @@ class ApplicationSettingsWidget : public EditWidget
 
 public:
     explicit ApplicationSettingsWidget(QWidget* parent = nullptr);
-    ~ApplicationSettingsWidget();
+    ~ApplicationSettingsWidget() override;
     void addSettingsPage(ISettingsPage* page);
     void loadSettings();
 
@@ -62,6 +62,7 @@ private slots:
     void systrayToggled(bool checked);
     void rememberDatabasesToggled(bool checked);
     void checkUpdatesToggled(bool checked);
+    void showExpiredEntriesOnDatabaseUnlockToggled(bool checked);
     void selectBackupDirectory();
 
 private:

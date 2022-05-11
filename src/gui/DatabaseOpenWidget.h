@@ -39,12 +39,13 @@ class DatabaseOpenWidget : public DialogyWidget
 
 public:
     explicit DatabaseOpenWidget(QWidget* parent = nullptr);
-    ~DatabaseOpenWidget();
+    ~DatabaseOpenWidget() override;
     void load(const QString& filename);
     QString filename();
     void clearForms();
     void enterKey(const QString& pw, const QString& keyFile);
     QSharedPointer<Database> database();
+    void resetQuickUnlock();
 
 signals:
     void dialogFinished(bool accepted);
@@ -53,6 +54,9 @@ protected:
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;
     QSharedPointer<CompositeKey> buildDatabaseKey();
+    void setUserInteractionLock(bool state);
+    // Quick Unlock helper functions
+    bool isOnQuickUnlockScreen();
 
     const QScopedPointer<Ui::DatabaseOpenWidget> m_ui;
     QSharedPointer<Database> m_db;
@@ -73,6 +77,7 @@ private slots:
 
 private:
     bool m_pollingHardwareKey = false;
+    bool m_blockQuickUnlock = false;
     QTimer m_hideTimer;
 
     Q_DISABLE_COPY(DatabaseOpenWidget)

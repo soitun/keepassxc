@@ -17,6 +17,7 @@
 cmake_minimum_required(VERSION 3.3.0)
 
 project(KeePassXC)
+set(APP_ID "org.keepassxc.${PROJECT_NAME}")
 
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
@@ -24,12 +25,16 @@ if(NOT CMAKE_BUILD_TYPE)
             FORCE)
 endif()
 string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LOWER)
+if(CMAKE_BUILD_TYPE_LOWER STREQUAL "debug" OR CMAKE_BUILD_TYPE_LOWER STREQUAL "relwithdebinfo")
+    set(IS_DEBUG_BUILD TRUE)
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 # Support Visual Studio Code
 include(CMakeToolsHelpers OPTIONAL)
 include(FeatureSummary)
+include(KPXCMacDeployHelpers)
 
 include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
@@ -50,13 +55,10 @@ option(WITH_XC_NETWORKING "Include networking code (e.g. for downloading website
 option(WITH_XC_BROWSER "Include browser integration with keepassxc-browser." OFF)
 option(WITH_XC_YUBIKEY "Include YubiKey support." OFF)
 option(WITH_XC_SSHAGENT "Include SSH agent support." OFF)
-option(WITH_XC_KEESHARE "Sharing integration with KeeShare (requires quazip5 for secure containers)" OFF)
+option(WITH_XC_KEESHARE "Sharing integration with KeeShare" OFF)
 option(WITH_XC_UPDATECHECK "Include automatic update checks; disable for controlled distributions" ON)
 if(UNIX AND NOT APPLE)
     option(WITH_XC_FDOSECRETS "Implement freedesktop.org Secret Storage Spec server side API." OFF)
-endif()
-if(APPLE)
-    option(WITH_XC_TOUCHID "Include TouchID support for macOS." OFF)
 endif()
 option(WITH_XC_DOCS "Enable building of documentation" ON)
 
@@ -78,9 +80,6 @@ if(WITH_XC_ALL)
     set(WITH_XC_YUBIKEY ON)
     set(WITH_XC_SSHAGENT ON)
     set(WITH_XC_KEESHARE ON)
-    if(APPLE)
-        set(WITH_XC_TOUCHID ON)
-    endif()
     if(UNIX AND NOT APPLE)
         set(WITH_XC_FDOSECRETS ON)
     endif()
@@ -94,7 +93,7 @@ endif()
 
 set(KEEPASSXC_VERSION_MAJOR "2")
 set(KEEPASSXC_VERSION_MINOR "7")
-set(KEEPASSXC_VERSION_PATCH "0")
+set(KEEPASSXC_VERSION_PATCH "1")
 set(KEEPASSXC_VERSION "${KEEPASSXC_VERSION_MAJOR}.${KEEPASSXC_VERSION_MINOR}.${KEEPASSXC_VERSION_PATCH}")
 set(OVERRIDE_VERSION "" CACHE STRING "Override the KeePassXC Version for Snapshot builds")
 
@@ -120,7 +119,8 @@ execute_process(COMMAND git tag --points-at HEAD
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
         OUTPUT_VARIABLE GIT_TAG
         ERROR_QUIET)
-if(GIT_TAG)
+string(REGEX REPLACE "latest" "" GIT_TAG "${GIT_TAG}")
+if(GIT_TAG MATCHES "[0-9]+\.[0-9]+\.[0-9]+")
     string(STRIP "${GIT_TAG}" GIT_TAG)
     set(OVERRIDE_VERSION ${GIT_TAG})
 elseif(EXISTS ${CMAKE_SOURCE_DIR}/.version)
@@ -129,14 +129,14 @@ endif()
 
 string(REGEX REPLACE "(\r?\n)+" "" OVERRIDE_VERSION "${OVERRIDE_VERSION}")
 if(OVERRIDE_VERSION)
-    if(OVERRIDE_VERSION MATCHES "^[\\.0-9]+-(alpha|beta)[0-9]+$")
-        set(KEEPASSXC_BUILD_TYPE PreRelease)
+    if(OVERRIDE_VERSION MATCHES "^[\\.0-9]+-beta[0-9]*")
+        set(KEEPASSXC_BUILD_TYPE "PreRelease")
         set(KEEPASSXC_VERSION ${OVERRIDE_VERSION})
     elseif(OVERRIDE_VERSION MATCHES "^[\\.0-9]+$")
-        set(KEEPASSXC_BUILD_TYPE Release)
+        set(KEEPASSXC_BUILD_TYPE "Release")
         set(KEEPASSXC_VERSION ${OVERRIDE_VERSION})
     else()
-        set(KEEPASSXC_BUILD_TYPE Snapshot)
+        set(KEEPASSXC_BUILD_TYPE "Snapshot")
         set(KEEPASSXC_VERSION ${OVERRIDE_VERSION})
     endif()
 else()
@@ -160,11 +160,13 @@ message(STATUS "Setting up build for KeePassXC v${KEEPASSXC_VERSION}\n")
 # Distribution info
 set(KEEPASSXC_DIST ON)
 set(KEEPASSXC_DIST_TYPE "Other" CACHE STRING "KeePassXC Distribution Type")
-set_property(CACHE KEEPASSXC_DIST_TYPE PROPERTY STRINGS Snap AppImage Other)
+set_property(CACHE KEEPASSXC_DIST_TYPE PROPERTY STRINGS Snap AppImage Flatpak Other)
 if(KEEPASSXC_DIST_TYPE STREQUAL "Snap")
     set(KEEPASSXC_DIST_SNAP ON)
 elseif(KEEPASSXC_DIST_TYPE STREQUAL "AppImage")
     set(KEEPASSXC_DIST_APPIMAGE ON)
+elseif(KEEPASSXC_DIST_TYPE STREQUAL "Flatpak")
+    set(KEEPASSXC_DIST_FLATPAK ON)
 elseif(KEEPASSXC_DIST_TYPE STREQUAL "Other")
     unset(KEEPASSXC_DIST)
 endif()
@@ -247,6 +249,9 @@ macro(check_add_gcc_compiler_flag FLAG)
 endmacro(check_add_gcc_compiler_flag)
 
 add_definitions(-DQT_NO_EXCEPTIONS -DQT_STRICT_ITERATORS -DQT_NO_CAST_TO_ASCII)
+if(NOT IS_DEBUG_BUILD)
+    add_definitions(-DQT_NO_DEBUG_OUTPUT)
+endif()
 
 if(WITH_APP_BUNDLE)
     add_definitions(-DWITH_APP_BUNDLE)
@@ -313,8 +318,20 @@ endif()
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-check_add_gcc_compiler_flag("-fsized-deallocation" CXX)
+check_cxx_compiler_flag("-fsized-deallocation" CXX_HAS_fsized_deallocation)
+if(CXX_HAS_fsized_deallocation)
+    # Do additional check: the deallocation functions must be there too.
+    set(CMAKE_REQUIRED_FLAGS "-fsized-deallocation")
+    check_cxx_source_compiles("#include <new>
+        int main() { void * ptr = nullptr; std::size_t size = 1; ::operator delete(ptr, size); }"
+        HAVE_DEALLOCATION_FUNCTIONS)
+    if(HAVE_DEALLOCATION_FUNCTIONS)
+        check_add_gcc_compiler_flag("-fsized-deallocation" CXX)
+    endif()
+    unset(CMAKE_REQUIRED_FLAGS)
+endif()
 
 if(APPLE AND CMAKE_COMPILER_IS_CLANGXX)
     add_gcc_compiler_cxxflags("-stdlib=libc++")
@@ -327,13 +344,18 @@ else()
     add_gcc_compiler_cxxflags("-Wno-deprecated-declarations")
 endif()
 
+# MSVC specific options
 if (MSVC)
-    if(MSVC_VERSION LESS 1910)
+    if(MSVC_TOOLSET_VERSION LESS 141)
         message(FATAL_ERROR "Only Microsoft Visual Studio 17 and newer are supported!")
     endif()
-    set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_CXX_STANDARD_REQUIRED ON)
     add_compile_options(/permissive- /utf-8)
+    if(IS_DEBUG_BUILD)
+        add_compile_options(/Zf)
+        if(MSVC_TOOLSET_VERSION GREATER 141)
+            add_compile_definitions(/fsanitize=address)
+        endif()
+    endif()
 endif()
 
 if(WIN32)
@@ -342,12 +364,11 @@ if(WIN32)
     if(MINGW)
         set(CMAKE_RC_COMPILE_OBJECT "<CMAKE_RC_COMPILER> <FLAGS> -O coff <DEFINES> -i <SOURCE> -o <OBJECT>")
     endif()
-    if(NOT (CMAKE_BUILD_TYPE_LOWER STREQUAL "debug" OR CMAKE_BUILD_TYPE_LOWER STREQUAL "relwithdebinfo"))
-        # Enable DEP, ASLR and on VS additional enable
-        # control flow guard and buffer security check
+    if(NOT IS_DEBUG_BUILD)
         if(MSVC)
-            add_compile_options(/DYNAMICBASE:YES /guard:cf /GS)
-            add_link_options(/NXCOMPAT /guard:cf)
+            # By default MSVC enables NXCOMPAT
+            add_compile_options(/guard:cf)
+            add_link_options(/DYNAMICBASE /HIGHENTROPYVA /GUARD:CF)
         else(MINGW)
             set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--nxcompat -Wl,--dynamicbase")
             set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -Wl,--nxcompat -Wl,--dynamicbase")
@@ -462,6 +483,7 @@ if(APPLE)
         message(FATAL_ERROR "macdeployqt is required to build on macOS")
     endif()
     message(STATUS "Using macdeployqt: ${MACDEPLOYQT_EXE}")
+    set(MACDEPLOYQT_EXTRA_BINARIES "")
 elseif(WIN32)
     find_program(WINDEPLOYQT_EXE windeployqt HINTS ${Qt5_PREFIX}/bin ${Qt5_PREFIX}/tools/qt5/bin ENV PATH)
     if(NOT WINDEPLOYQT_EXE)
@@ -480,6 +502,10 @@ if(BOTAN2_VERSION VERSION_LESS "2.11.0")
     message(FATAL_ERROR "Botan2 2.11.0 or higher is required")
 endif()
 include_directories(SYSTEM ${BOTAN2_INCLUDE_DIR})
+# Find Argon2 -- Botan 2.18 and below does not support threaded Argon2
+find_library(ARGON2_LIBRARIES NAMES argon2)
+find_path(ARGON2_INCLUDE_DIR NAMES argon2.h PATH_SUFFIXES local/include)
+include_directories(SYSTEM ${ARGON2_INCLUDE_DIR})
 
 # Find zlib
 find_package(ZLIB REQUIRED)
@@ -503,7 +529,7 @@ if(UNIX)
             HAVE_MALLOC_H)
 
     check_cxx_source_compiles("#include <malloc.h>
-    int main() { malloc_usable_size(NULL, 0); return 0; }"
+    int main() { malloc_usable_size(NULL); return 0; }"
             HAVE_MALLOC_USABLE_SIZE)
 
     check_cxx_source_compiles("#include <sys/resource.h>

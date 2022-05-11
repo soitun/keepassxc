@@ -190,6 +190,14 @@ QString Entry::tags() const
     return m_data.tags;
 }
 
+QStringList Entry::tagList() const
+{
+    static QRegExp rx("(\\,|\\t|\\;)");
+    auto taglist = tags().split(rx, QString::SkipEmptyParts);
+    std::sort(taglist.begin(), taglist.end());
+    return taglist;
+}
+
 const TimeInfo& Entry::timeInfo() const
 {
     return m_data.timeInfo;
@@ -210,10 +218,18 @@ QString Entry::defaultAutoTypeSequence() const
     return m_data.defaultAutoTypeSequence;
 }
 
-const QSharedPointer<PasswordHealth>& Entry::passwordHealth()
+const QSharedPointer<PasswordHealth> Entry::passwordHealth()
 {
     if (!m_data.passwordHealth) {
         m_data.passwordHealth.reset(new PasswordHealth(resolvePlaceholder(password())));
+    }
+    return m_data.passwordHealth;
+}
+
+const QSharedPointer<PasswordHealth> Entry::passwordHealth() const
+{
+    if (!m_data.passwordHealth) {
+        return QSharedPointer<PasswordHealth>::create(resolvePlaceholder(password()));
     }
     return m_data.passwordHealth;
 }
@@ -267,7 +283,7 @@ QString Entry::effectiveAutoTypeSequence() const
 }
 
 /**
- * Retrive the autotype sequences matches for a given windowTitle
+ * Retrieve the Auto-Type sequences matches for a given windowTitle
  * This returns a list with priority ordering. If you don't want duplicates call .toSet() on it.
  */
 QList<QString> Entry::autoTypeSequences(const QString& windowTitle) const
@@ -281,13 +297,14 @@ QList<QString> Entry::autoTypeSequences(const QString& windowTitle) const
     auto windowMatches = [&](const QString& pattern) {
         // Regex searching
         if (pattern.startsWith("//") && pattern.endsWith("//") && pattern.size() >= 4) {
-            QRegExp regExp(pattern.mid(2, pattern.size() - 4), Qt::CaseInsensitive, QRegExp::RegExp2);
-            return (regExp.indexIn(windowTitle) != -1);
+            QRegularExpression regExp(pattern.mid(2, pattern.size() - 4), QRegularExpression::CaseInsensitiveOption);
+            return regExp.match(windowTitle).hasMatch();
         }
 
         // Wildcard searching
-        auto regex = Tools::convertToRegex(pattern, true, false, false);
-        return windowTitle.contains(regex);
+        const auto regExp = Tools::convertToRegex(
+            pattern, Tools::RegexConvertOpts::EXACT_MATCH | Tools::RegexConvertOpts::WILDCARD_UNLIMITED_MATCH);
+        return regExp.match(windowTitle).hasMatch();
     };
 
     auto windowMatchesTitle = [&](const QString& entryTitle) {
@@ -313,7 +330,7 @@ QList<QString> Entry::autoTypeSequences(const QString& windowTitle) const
     const auto assocList = autoTypeAssociations()->getAll();
     for (const auto& assoc : assocList) {
         auto window = resolveMultiplePlaceholders(assoc.window);
-        if (windowMatches(window)) {
+        if (!assoc.window.isEmpty() && windowMatches(window)) {
             if (!assoc.sequence.isEmpty()) {
                 sequenceList << assoc.sequence;
             } else {
@@ -353,6 +370,26 @@ QString Entry::title() const
 QString Entry::url() const
 {
     return m_attributes->value(EntryAttributes::URLKey);
+}
+
+QStringList Entry::getAllUrls() const
+{
+    QStringList urlList;
+
+    if (!url().isEmpty()) {
+        urlList << url();
+    }
+
+    for (const auto& key : m_attributes->keys()) {
+        if (key.startsWith("KP2A_URL")) {
+            auto additionalUrl = m_attributes->value(key);
+            if (!additionalUrl.isEmpty()) {
+                urlList << additionalUrl;
+            }
+        }
+    }
+
+    return urlList;
 }
 
 QString Entry::webUrl() const
@@ -406,7 +443,12 @@ int Entry::size() const
 
 bool Entry::isExpired() const
 {
-    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < Clock::currentDateTimeUtc();
+    return willExpireInDays(0);
+}
+
+bool Entry::willExpireInDays(int days) const
+{
+    return m_data.timeInfo.expires() && m_data.timeInfo.expiryTime() < Clock::currentDateTime().addDays(days);
 }
 
 bool Entry::isRecycled() const
@@ -823,7 +865,7 @@ bool Entry::equals(const Entry* other, CompareItemOptions options) const
 
 Entry* Entry::clone(CloneFlags flags) const
 {
-    Entry* entry = new Entry();
+    auto entry = new Entry();
     entry->setUpdateTimeinfo(false);
     if (flags & CloneNewUuid) {
         entry->m_uuid = QUuid::createUuid();
@@ -1097,7 +1139,7 @@ QString Entry::resolveReferencePlaceholderRecursive(const QString& placeholder, 
     // using format from http://keepass.info/help/base/fieldrefs.html at the time of writing
 
     QRegularExpressionMatch match = EntryAttributes::matchReference(placeholder);
-    if (!match.hasMatch()) {
+    if (!match.hasMatch() || !m_group || !m_group->database()) {
         return placeholder;
     }
 
@@ -1107,8 +1149,6 @@ QString Entry::resolveReferencePlaceholderRecursive(const QString& placeholder, 
 
     const EntryReferenceType searchInType = Entry::referenceType(searchIn);
 
-    Q_ASSERT(m_group);
-    Q_ASSERT(m_group->database());
     const Entry* refEntry = m_group->database()->rootGroup()->findEntryBySearchTerm(searchText, searchInType);
 
     if (refEntry) {

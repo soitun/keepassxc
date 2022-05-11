@@ -18,6 +18,7 @@
 #include "DatabaseTabWidget.h"
 
 #include <QFileInfo>
+#include <QTabBar>
 
 #include "autotype/AutoType.h"
 #include "core/Tools.h"
@@ -26,7 +27,6 @@
 #include "gui/DatabaseOpenDialog.h"
 #include "gui/DatabaseWidget.h"
 #include "gui/DatabaseWidgetStateSync.h"
-#include "gui/DragTabBar.h"
 #include "gui/FileDialog.h"
 #include "gui/HtmlExporter.h"
 #include "gui/MessageBox.h"
@@ -42,7 +42,9 @@ DatabaseTabWidget::DatabaseTabWidget(QWidget* parent)
     , m_dbWidgetPendingLock(nullptr)
     , m_databaseOpenDialog(new DatabaseOpenDialog(this))
 {
-    auto* tabBar = new DragTabBar(this);
+    auto* tabBar = new QTabBar(this);
+    tabBar->setAcceptDrops(true);
+    tabBar->setChangeCurrentOnDrag(true);
     setTabBar(tabBar);
     setDocumentMode(true);
 
@@ -52,7 +54,7 @@ DatabaseTabWidget::DatabaseTabWidget(QWidget* parent)
     connect(this, SIGNAL(activeDatabaseChanged(DatabaseWidget*)),
             m_dbWidgetStateSync, SLOT(setActive(DatabaseWidget*)));
     connect(autoType(), SIGNAL(globalAutoTypeTriggered(const QString&)), SLOT(performGlobalAutoType(const QString&)));
-    connect(autoType(), SIGNAL(autotypePerformed()), SLOT(relockPendingDatabase()));
+    connect(autoType(), SIGNAL(autotypeRetypeTimeout()), SLOT(relockPendingDatabase()));
     connect(autoType(), SIGNAL(autotypeRejected()), SLOT(relockPendingDatabase()));
     connect(m_databaseOpenDialog.data(), &DatabaseOpenDialog::dialogFinished,
             this, &DatabaseTabWidget::handleDatabaseUnlockDialogFinished);
@@ -513,20 +515,6 @@ void DatabaseTabWidget::showDatabaseSettings()
     currentDatabaseWidget()->switchToDatabaseSettings();
 }
 
-bool DatabaseTabWidget::isReadOnly(int index) const
-{
-    if (count() == 0) {
-        return false;
-    }
-
-    if (index == -1) {
-        index = currentIndex();
-    }
-
-    auto db = databaseWidgetFromIndex(index)->database();
-    return db && db->isReadOnly();
-}
-
 bool DatabaseTabWidget::isModified(int index) const
 {
     if (count() == 0) {
@@ -543,7 +531,7 @@ bool DatabaseTabWidget::isModified(int index) const
 
 bool DatabaseTabWidget::canSave(int index) const
 {
-    return !isReadOnly(index) && isModified(index);
+    return isModified(index);
 }
 
 bool DatabaseTabWidget::hasLockableDatabases() const
@@ -599,10 +587,6 @@ QString DatabaseTabWidget::tabName(int index)
 
     if (dbWidget->isLocked()) {
         tabName = tr("%1 [Locked]", "Database tab name modifier").arg(tabName);
-    }
-
-    if (db->isReadOnly()) {
-        tabName = tr("%1 [Read-only]", "Database tab name modifier").arg(tabName);
     }
 
     if (db->isModified()) {

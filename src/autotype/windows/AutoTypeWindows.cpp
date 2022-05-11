@@ -81,45 +81,91 @@ bool AutoTypePlatformWin::raiseWindow(WId window)
 //
 // Send unicode character to foreground window
 //
-void AutoTypePlatformWin::sendChar(const QChar& ch, bool isKeyDown)
+void AutoTypePlatformWin::sendChar(const QChar& ch)
 {
-    DWORD nativeFlags = KEYEVENTF_UNICODE;
-    if (!isKeyDown) {
+    INPUT in[2];
+    in[0].type = INPUT_KEYBOARD;
+    in[0].ki.wVk = 0;
+    in[0].ki.wScan = ch.unicode();
+    in[0].ki.dwFlags = KEYEVENTF_UNICODE;
+    in[0].ki.time = 0;
+    in[0].ki.dwExtraInfo = ::GetMessageExtraInfo();
+
+    in[1] = in[0];
+    in[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+
+    ::SendInput(2, &in[0], sizeof(INPUT));
+}
+
+void AutoTypePlatformWin::sendCharVirtual(const QChar& ch)
+{
+    auto vKey = VkKeyScanExW(ch.unicode(), GetKeyboardLayout(0));
+    if (vKey == -1) {
+        // VKey not found, send as Unicode character
+        sendChar(ch);
+        return;
+    }
+
+    if (HIBYTE(vKey) & 0x6) {
+        setKeyState(Qt::Key_AltGr, true);
+    } else {
+        if (HIBYTE(vKey) & 0x1) {
+            setKeyState(Qt::Key_Shift, true);
+        }
+        if (HIBYTE(vKey) & 0x2) {
+            setKeyState(Qt::Key_Control, true);
+        }
+        if (HIBYTE(vKey) & 0x4) {
+            setKeyState(Qt::Key_Alt, true);
+        }
+    }
+
+    INPUT in[2];
+    in[0].type = INPUT_KEYBOARD;
+    in[0].ki.wVk = 0;
+    in[0].ki.wScan = MapVirtualKey(LOBYTE(vKey), MAPVK_VK_TO_VSC);
+    in[0].ki.dwFlags = KEYEVENTF_SCANCODE;
+    in[0].ki.time = 0;
+    in[0].ki.dwExtraInfo = ::GetMessageExtraInfo();
+
+    in[1] = in[0];
+    in[1].ki.dwFlags |= KEYEVENTF_KEYUP;
+
+    ::SendInput(2, &in[0], sizeof(INPUT));
+
+    if (HIBYTE(vKey) & 0x6) {
+        setKeyState(Qt::Key_AltGr, false);
+    } else {
+        if (HIBYTE(vKey) & 0x1) {
+            setKeyState(Qt::Key_Shift, false);
+        }
+        if (HIBYTE(vKey) & 0x2) {
+            setKeyState(Qt::Key_Control, false);
+        }
+        if (HIBYTE(vKey) & 0x4) {
+            setKeyState(Qt::Key_Alt, false);
+        }
+    }
+}
+
+//
+// Send virtual key code to foreground window
+//
+void AutoTypePlatformWin::setKeyState(Qt::Key key, bool down)
+{
+    WORD nativeKeyCode = winUtils()->qtToNativeKeyCode(key);
+    DWORD nativeFlags = KEYEVENTF_SCANCODE;
+    if (isExtendedKey(nativeKeyCode)) {
+        nativeFlags |= KEYEVENTF_EXTENDEDKEY;
+    }
+    if (!down) {
         nativeFlags |= KEYEVENTF_KEYUP;
     }
 
     INPUT in;
     in.type = INPUT_KEYBOARD;
     in.ki.wVk = 0;
-    in.ki.wScan = ch.unicode();
-    in.ki.dwFlags = nativeFlags;
-    in.ki.time = 0;
-    in.ki.dwExtraInfo = ::GetMessageExtraInfo();
-
-    ::SendInput(1, &in, sizeof(INPUT));
-}
-
-//
-// Send virtual key code to foreground window
-//
-void AutoTypePlatformWin::sendKey(Qt::Key key, bool isKeyDown)
-{
-    DWORD nativeKeyCode = winUtils()->qtToNativeKeyCode(key);
-    if (nativeKeyCode < 1 || nativeKeyCode > 254) {
-        return;
-    }
-    DWORD nativeFlags = 0;
-    if (isExtendedKey(nativeKeyCode)) {
-        nativeFlags |= KEYEVENTF_EXTENDEDKEY;
-    }
-    if (!isKeyDown) {
-        nativeFlags |= KEYEVENTF_KEYUP;
-    }
-
-    INPUT in;
-    in.type = INPUT_KEYBOARD;
-    in.ki.wVk = LOWORD(nativeKeyCode);
-    in.ki.wScan = LOWORD(::MapVirtualKeyW(nativeKeyCode, MAPVK_VK_TO_VSC));
+    in.ki.wScan = MapVirtualKey(LOBYTE(nativeKeyCode), MAPVK_VK_TO_VSC);
     in.ki.dwFlags = nativeFlags;
     in.ki.time = 0;
     in.ki.dwExtraInfo = ::GetMessageExtraInfo();
@@ -235,31 +281,40 @@ AutoTypeAction::Result AutoTypeExecutorWin::execBegin(const AutoTypeBegin* actio
 AutoTypeAction::Result AutoTypeExecutorWin::execType(const AutoTypeKey* action)
 {
     if (action->modifiers & Qt::ShiftModifier) {
-        m_platform->sendKey(Qt::Key_Shift, true);
+        m_platform->setKeyState(Qt::Key_Shift, true);
     }
     if (action->modifiers & Qt::ControlModifier) {
-        m_platform->sendKey(Qt::Key_Control, true);
+        m_platform->setKeyState(Qt::Key_Control, true);
     }
     if (action->modifiers & Qt::AltModifier) {
-        m_platform->sendKey(Qt::Key_Alt, true);
+        m_platform->setKeyState(Qt::Key_Alt, true);
+    }
+    if (action->modifiers & Qt::MetaModifier) {
+        m_platform->setKeyState(Qt::Key_Meta, true);
     }
 
     if (action->key != Qt::Key_unknown) {
-        m_platform->sendKey(action->key, true);
-        m_platform->sendKey(action->key, false);
+        m_platform->setKeyState(action->key, true);
+        m_platform->setKeyState(action->key, false);
     } else {
-        m_platform->sendChar(action->character, true);
-        m_platform->sendChar(action->character, false);
+        if (mode == Mode::VIRTUAL || action->modifiers != Qt::NoModifier) {
+            m_platform->sendCharVirtual(action->character);
+        } else {
+            m_platform->sendChar(action->character);
+        }
     }
 
     if (action->modifiers & Qt::ShiftModifier) {
-        m_platform->sendKey(Qt::Key_Shift, false);
+        m_platform->setKeyState(Qt::Key_Shift, false);
     }
     if (action->modifiers & Qt::ControlModifier) {
-        m_platform->sendKey(Qt::Key_Control, false);
+        m_platform->setKeyState(Qt::Key_Control, false);
     }
     if (action->modifiers & Qt::AltModifier) {
-        m_platform->sendKey(Qt::Key_Alt, false);
+        m_platform->setKeyState(Qt::Key_Alt, false);
+    }
+    if (action->modifiers & Qt::MetaModifier) {
+        m_platform->setKeyState(Qt::Key_Meta, false);
     }
 
     Tools::sleep(execDelayMs);

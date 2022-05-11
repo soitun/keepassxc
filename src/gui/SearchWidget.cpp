@@ -83,7 +83,7 @@ SearchWidget::~SearchWidget()
 bool SearchWidget::eventFilter(QObject* obj, QEvent* event)
 {
     if (event->type() == QEvent::KeyPress) {
-        QKeyEvent* keyEvent = static_cast<QKeyEvent*>(event);
+        auto keyEvent = static_cast<QKeyEvent*>(event);
         if (keyEvent->key() == Qt::Key_Escape) {
             emit escapePressed();
             return true;
@@ -130,6 +130,7 @@ void SearchWidget::connectSignals(SignalMultiplexer& mx)
     mx.connect(this, SIGNAL(limitGroupChanged(bool)), SLOT(setSearchLimitGroup(bool)));
     mx.connect(this, SIGNAL(copyPressed()), SLOT(copyPassword()));
     mx.connect(this, SIGNAL(downPressed()), SLOT(focusOnEntries()));
+    mx.connect(SIGNAL(requestSearch(QString)), m_ui->searchEdit, SLOT(setText(QString)));
     mx.connect(SIGNAL(clearSearch()), this, SLOT(clearSearch()));
     mx.connect(SIGNAL(entrySelectionChanged()), this, SLOT(resetSearchClearTimer()));
     mx.connect(SIGNAL(currentModeChanged(DatabaseWidget::Mode)), this, SLOT(resetSearchClearTimer()));

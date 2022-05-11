@@ -39,6 +39,7 @@
         <file>application/scalable/actions/entry-edit.svg</file>
         <file>application/scalable/actions/entry-new.svg</file>
         <file>application/scalable/actions/favicon-download.svg</file>
+        <file>application/scalable/actions/fingerprint.svg</file>
         <file>application/scalable/actions/getting-started.svg</file>
         <file>application/scalable/actions/group-delete.svg</file>
         <file>application/scalable/actions/group-edit.svg</file>
@@ -49,7 +50,6 @@
         <file>application/scalable/actions/health.svg</file>
         <file>application/scalable/actions/help-about.svg</file>
         <file>application/scalable/actions/hibp.svg</file>
-        <file>application/scalable/actions/key-enter.svg</file>
         <file>application/scalable/actions/lock-question.svg</file>
         <file>application/scalable/actions/keyboard-shortcuts.svg</file>
         <file>application/scalable/actions/message-close.svg</file>
@@ -59,7 +59,6 @@
         <file>application/scalable/actions/object-unlocked.svg</file>
         <file>application/scalable/actions/paperclip.svg</file>
         <file>application/scalable/actions/password-copy.svg</file>
-        <file>application/scalable/actions/password-generate.svg</file>
         <file>application/scalable/actions/password-generator.svg</file>
         <file>application/scalable/actions/password-show-off.svg</file>
         <file>application/scalable/actions/password-show-on.svg</file>
@@ -72,13 +71,14 @@
         <file>application/scalable/actions/system-help.svg</file>
         <file>application/scalable/actions/system-search.svg</file>
         <file>application/scalable/actions/system-software-update.svg</file>
+        <file>application/scalable/actions/tag.svg</file>
+        <file>application/scalable/actions/tag-search.svg</file>
         <file>application/scalable/actions/trash.svg</file>
         <file>application/scalable/actions/url-copy.svg</file>
         <file>application/scalable/actions/user-guide.svg</file>
         <file>application/scalable/actions/username-copy.svg</file>
         <file>application/scalable/actions/view-history.svg</file>
         <file>application/scalable/actions/web.svg</file>
-
         <file>application/scalable/apps/freedesktop.svg</file>
         <file>application/scalable/apps/internet-web-browser.svg</file>
         <file>application/scalable/apps/keepassxc.svg</file>

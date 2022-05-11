@@ -48,7 +48,7 @@ class MainWindow : public QMainWindow
 
 public:
     MainWindow();
-    ~MainWindow();
+    ~MainWindow() override;
 
     QList<DatabaseWidget*> getOpenDatabases();
     void restoreConfigState();
@@ -134,7 +134,6 @@ private slots:
     void trayIconTriggered(QSystemTrayIcon::ActivationReason reason);
     void processTrayIconTrigger();
     void lockDatabasesAfterInactivity();
-    void forgetTouchIDAfterInactivity();
     void handleScreenLock();
     void showErrorMessage(const QString& message);
     void selectNextDatabaseTab();

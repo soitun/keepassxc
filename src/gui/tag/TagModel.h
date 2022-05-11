@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2012 Felix Geyer <debfx@fobos.de>
+ *  Copyright (C) 2018 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,31 +15,34 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSX_DRAGTABBAR_H
-#define KEEPASSX_DRAGTABBAR_H
+#ifndef KEEPASSX_TAGMODEL_H
+#define KEEPASSX_TAGMODEL_H
 
-#include <QTabBar>
+#include <QAbstractListModel>
+#include <QSharedPointer>
 
-class DragTabBar : public QTabBar
+class Database;
+
+class TagModel : public QAbstractListModel
 {
     Q_OBJECT
 
 public:
-    explicit DragTabBar(QWidget* parent = nullptr);
+    explicit TagModel(QSharedPointer<Database> db, QObject* parent = nullptr);
+    ~TagModel() override;
 
-protected:
-    void dragEnterEvent(QDragEnterEvent* event) override;
-    void dragMoveEvent(QDragMoveEvent* event) override;
-    void dragLeaveEvent(QDragLeaveEvent* event) override;
-    void dropEvent(QDropEvent* event) override;
-    void tabLayoutChange() override;
+    void setDatabase(QSharedPointer<Database> db);
+    const QStringList& tags() const;
+
+    int rowCount(const QModelIndex& parent = QModelIndex()) const override;
+    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override;
 
 private slots:
-    void dragSwitchTab();
+    void updateTagList();
 
 private:
-    QTimer* const m_tabSwitchTimer;
-    int m_tabSwitchIndex;
+    QSharedPointer<Database> m_db;
+    QStringList m_tagList;
 };
 
-#endif // KEEPASSX_DRAGTABBAR_H
+#endif // KEEPASSX_TAGMODEL_H

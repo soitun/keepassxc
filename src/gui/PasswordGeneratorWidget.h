@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 2013 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2021 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2022 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ public:
     };
 
     explicit PasswordGeneratorWidget(QWidget* parent = nullptr);
-    ~PasswordGeneratorWidget();
+    ~PasswordGeneratorWidget() override;
 
     void loadSettings();
     void saveSettings();
@@ -53,6 +53,7 @@ public:
     void setStandaloneMode(bool standalone);
     QString getGeneratedPassword();
     bool isPasswordVisible() const;
+    bool isPasswordGenerated() const;
 
     static PasswordGeneratorWidget* popupGenerator(QWidget* parent = nullptr);
 
@@ -82,9 +83,10 @@ private slots:
 
 private:
     bool m_standalone = false;
+    bool m_passwordGenerated = false;
     int m_firstCustomWordlistIndex;
 
-    void closeEvent(QCloseEvent* event);
+    void closeEvent(QCloseEvent* event) override;
     PasswordGenerator::CharClasses charClasses();
     PasswordGenerator::GeneratorFlags generatorFlags();
 

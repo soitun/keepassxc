@@ -52,7 +52,11 @@ Database::Database()
 
     // other signals
     connect(m_metadata, &Metadata::modified, this, &Database::markAsModified);
-    connect(this, &Database::databaseOpened, this, [this]() { updateCommonUsernames(); });
+    connect(this, &Database::databaseOpened, this, [this]() {
+        updateCommonUsernames();
+        updateTagList();
+    });
+    connect(this, &Database::modified, this, [this] { updateTagList(); });
     connect(this, &Database::databaseSaved, this, [this]() { updateCommonUsernames(); });
     connect(m_fileWatcher, &FileWatcher::fileChanged, this, &Database::databaseFileChanged);
 
@@ -92,17 +96,16 @@ QUuid Database::uuid() const
  * read-write mode and fall back to read-only if that is not possible.
  *
  * @param key composite key for unlocking the database
- * @param readOnly open in read-only mode
  * @param error error message in case of failure
  * @return true on success
  */
-bool Database::open(QSharedPointer<const CompositeKey> key, QString* error, bool readOnly)
+bool Database::open(QSharedPointer<const CompositeKey> key, QString* error)
 {
     Q_ASSERT(!m_data.filePath.isEmpty());
     if (m_data.filePath.isEmpty()) {
         return false;
     }
-    return open(m_data.filePath, std::move(key), error, readOnly);
+    return open(m_data.filePath, std::move(key), error);
 }
 
 /**
@@ -112,11 +115,10 @@ bool Database::open(QSharedPointer<const CompositeKey> key, QString* error, bool
  *
  * @param filePath path to the file
  * @param key composite key for unlocking the database
- * @param readOnly open in read-only mode
  * @param error error message in case of failure
  * @return true on success
  */
-bool Database::open(const QString& filePath, QSharedPointer<const CompositeKey> key, QString* error, bool readOnly)
+bool Database::open(const QString& filePath, QSharedPointer<const CompositeKey> key, QString* error)
 {
     QFile dbFile(filePath);
     if (!dbFile.exists()) {
@@ -150,7 +152,6 @@ bool Database::open(const QString& filePath, QSharedPointer<const CompositeKey> 
         return false;
     }
 
-    setReadOnly(readOnly);
     setFilePath(filePath);
     dbFile.close();
 
@@ -256,15 +257,6 @@ bool Database::saveAs(const QString& filePath, SaveAction action, const QString&
     QMutexLocker locker(&m_saveMutex);
 
     if (filePath == m_data.filePath) {
-        // Disallow saving to the same file if read-only
-        if (m_data.isReadOnly) {
-            Q_ASSERT_X(false, "Database::saveAs", "Could not save, database file is read-only.");
-            if (error) {
-                *error = tr("Could not save, database file is read-only.");
-            }
-            return false;
-        }
-
         // Fail-safe check to make sure we don't overwrite underlying file changes
         // that have not yet triggered a file reload/merge operation.
         if (!m_fileWatcher->hasSameFileChecksum()) {
@@ -276,7 +268,6 @@ bool Database::saveAs(const QString& filePath, SaveAction action, const QString&
     }
 
     // Clear read-only flag
-    setReadOnly(false);
     m_fileWatcher->stop();
 
     QFileInfo fileInfo(filePath);
@@ -398,17 +389,9 @@ bool Database::performSave(const QString& filePath, SaveAction action, const QSt
 
 bool Database::writeDatabase(QIODevice* device, QString* error)
 {
-    Q_ASSERT(!m_data.isReadOnly);
-    if (m_data.isReadOnly) {
-        if (error) {
-            *error = tr("File cannot be written as it is opened in read-only mode.");
-        }
-        return false;
-    }
-
     PasswordKey oldTransformedKey;
     if (m_data.key->isEmpty()) {
-        oldTransformedKey.setHash(m_data.transformedDatabaseKey->rawKey());
+        oldTransformedKey.setRawKey(m_data.transformedDatabaseKey->rawKey());
     }
 
     KeePass2Writer writer;
@@ -504,6 +487,7 @@ void Database::releaseData()
 
     m_deletedObjects.clear();
     m_commonUsernames.clear();
+    m_tagList.clear();
 }
 
 /**
@@ -549,16 +533,6 @@ bool Database::restoreDatabase(const QString& filePath, const QString& fromBacku
         }
     }
     return false;
-}
-
-bool Database::isReadOnly() const
-{
-    return m_data.isReadOnly;
-}
-
-void Database::setReadOnly(bool readOnly)
-{
-    m_data.isReadOnly = readOnly;
 }
 
 /**
@@ -700,15 +674,44 @@ void Database::addDeletedObject(const QUuid& uuid)
     addDeletedObject(delObj);
 }
 
-QList<QString> Database::commonUsernames()
+const QStringList& Database::commonUsernames() const
 {
     return m_commonUsernames;
+}
+
+const QStringList& Database::tagList() const
+{
+    return m_tagList;
 }
 
 void Database::updateCommonUsernames(int topN)
 {
     m_commonUsernames.clear();
     m_commonUsernames.append(rootGroup()->usernamesRecursive(topN));
+}
+
+void Database::updateTagList()
+{
+    m_tagList.clear();
+    if (!m_rootGroup) {
+        emit tagListUpdated();
+        return;
+    }
+
+    // Search groups recursively looking for tags
+    // Use a set to prevent adding duplicates
+    QSet<QString> tagSet;
+    for (const auto group : m_rootGroup->groupsRecursive(true)) {
+        for (const auto entry : group->entries()) {
+            for (auto tag : entry->tagList()) {
+                tagSet.insert(tag);
+            }
+        }
+    }
+
+    m_tagList = tagSet.toList();
+    m_tagList.sort();
+    emit tagListUpdated();
 }
 
 const QUuid& Database::cipher() const
@@ -735,11 +738,11 @@ bool Database::challengeMasterSeed(const QByteArray& masterSeed)
 {
     m_keyError.clear();
     if (m_data.key) {
-        m_data.masterSeed->setHash(masterSeed);
+        m_data.masterSeed->setRawKey(masterSeed);
         QByteArray response;
         bool ok = m_data.key->challenge(masterSeed, response, &m_keyError);
         if (ok && !response.isEmpty()) {
-            m_data.challengeResponseKey->setHash(response);
+            m_data.challengeResponseKey->setRawKey(response);
         } else if (ok && response.isEmpty()) {
             // no CR key present, make sure buffer is empty
             m_data.challengeResponseKey.reset(new PasswordKey);
@@ -777,7 +780,6 @@ bool Database::setKey(const QSharedPointer<const CompositeKey>& key,
                       bool updateTransformSalt,
                       bool transformKey)
 {
-    Q_ASSERT(!m_data.isReadOnly);
     m_keyError.clear();
 
     if (!key) {
@@ -793,7 +795,7 @@ bool Database::setKey(const QSharedPointer<const CompositeKey>& key,
 
     PasswordKey oldTransformedDatabaseKey;
     if (m_data.key && !m_data.key->isEmpty()) {
-        oldTransformedDatabaseKey.setHash(m_data.transformedDatabaseKey->rawKey());
+        oldTransformedDatabaseKey.setRawKey(m_data.transformedDatabaseKey->rawKey());
     }
 
     QByteArray transformedDatabaseKey;
@@ -806,7 +808,7 @@ bool Database::setKey(const QSharedPointer<const CompositeKey>& key,
 
     m_data.key = key;
     if (!transformedDatabaseKey.isEmpty()) {
-        m_data.transformedDatabaseKey->setHash(transformedDatabaseKey);
+        m_data.transformedDatabaseKey->setRawKey(transformedDatabaseKey);
     }
     if (updateChangedTime) {
         m_metadata->setDatabaseKeyChanged(Clock::currentDateTimeUtc());
@@ -836,14 +838,11 @@ const QVariantMap& Database::publicCustomData() const
 
 void Database::setPublicCustomData(const QVariantMap& customData)
 {
-    Q_ASSERT(!m_data.isReadOnly);
     m_data.publicCustomData = customData;
 }
 
 void Database::createRecycleBin()
 {
-    Q_ASSERT(!m_data.isReadOnly);
-
     auto recycleBin = new Group();
     recycleBin->setUuid(QUuid::createUuid());
     recycleBin->setParent(rootGroup());
@@ -857,7 +856,6 @@ void Database::createRecycleBin()
 
 void Database::recycleEntry(Entry* entry)
 {
-    Q_ASSERT(!m_data.isReadOnly);
     if (m_metadata->recycleBinEnabled()) {
         if (!m_metadata->recycleBin()) {
             createRecycleBin();
@@ -870,7 +868,6 @@ void Database::recycleEntry(Entry* entry)
 
 void Database::recycleGroup(Group* group)
 {
-    Q_ASSERT(!m_data.isReadOnly);
     if (m_metadata->recycleBinEnabled()) {
         if (!m_metadata->recycleBin()) {
             createRecycleBin();
@@ -883,7 +880,6 @@ void Database::recycleGroup(Group* group)
 
 void Database::emptyRecycleBin()
 {
-    Q_ASSERT(!m_data.isReadOnly);
     if (m_metadata->recycleBinEnabled() && m_metadata->recycleBin()) {
         // destroying direct entries of the recycle bin
         QList<Entry*> subEntries = m_metadata->recycleBin()->entries();
@@ -954,15 +950,12 @@ QSharedPointer<Kdf> Database::kdf() const
 
 void Database::setKdf(QSharedPointer<Kdf> kdf)
 {
-    Q_ASSERT(!m_data.isReadOnly);
     m_data.kdf = std::move(kdf);
     setFormatVersion(KeePass2Writer::kdbxVersionRequired(this, true, m_data.kdf.isNull()));
 }
 
 bool Database::changeKdf(const QSharedPointer<Kdf>& kdf)
 {
-    Q_ASSERT(!m_data.isReadOnly);
-
     kdf->randomizeSeed();
     QByteArray transformedDatabaseKey;
     if (!m_data.key) {
@@ -973,7 +966,7 @@ bool Database::changeKdf(const QSharedPointer<Kdf>& kdf)
     }
 
     setKdf(kdf);
-    m_data.transformedDatabaseKey->setHash(transformedDatabaseKey);
+    m_data.transformedDatabaseKey->setRawKey(transformedDatabaseKey);
     markAsModified();
 
     return true;

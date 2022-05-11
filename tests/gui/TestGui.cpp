@@ -53,6 +53,7 @@
 #include "gui/group/EditGroupWidget.h"
 #include "gui/group/GroupModel.h"
 #include "gui/group/GroupView.h"
+#include "gui/tag/TagsEdit.h"
 #include "gui/wizard/NewDatabaseWizard.h"
 #include "keys/FileKey.h"
 
@@ -106,6 +107,8 @@ void TestGui::init()
     config()->set(Config::GUI_ShowTrayIcon, true);
     // Disable the update check first time alert
     config()->set(Config::UpdateCheckMessageShown, true);
+    // Disable quick unlock
+    config()->set(Config::Security_QuickUnlock, false);
 
     // Copy the test database file to the temporary file
     auto origFilePath = QDir(KEEPASSX_TEST_DATA_DIR).absoluteFilePath("NewDatabase.kdbx");
@@ -446,6 +449,19 @@ void TestGui::testEditEntry()
     QTest::mouseClick(applyButton, Qt::LeftButton);
     QCOMPARE(entry->historyItems().size(), ++editCount);
     QVERIFY(entry->excludeFromReports());
+
+    // Test tags
+    auto* tags = editEntryWidget->findChild<TagsEdit*>("tagsList");
+    QTest::keyClicks(tags, "_tag1");
+    QTest::keyClick(tags, Qt::Key_Return);
+    QCOMPARE(tags->tags().last(), QString("_tag1"));
+    QTest::keyClicks(tags, "tag 2"); // adds another tag
+    QTest::keyClick(tags, Qt::Key_Return);
+    QCOMPARE(tags->tags().last(), QString("tag 2"));
+    QTest::keyClick(tags, Qt::Key_Backspace); // Back into editing last tag
+    QTest::keyClicks(tags, "_is!awesome");
+    QTest::keyClick(tags, Qt::Key_Return);
+    QCOMPARE(tags->tags().last(), QString("tag 2_is!awesome"));
 
     // Test entry colors (simulate choosing a color)
     editEntryWidget->setCurrentPage(1);
@@ -872,6 +888,16 @@ void TestGui::testSearch()
     QTRY_VERIFY(m_dbWidget->isSearchActive());
     QTRY_COMPARE(entryView->model()->rowCount(), 0);
     // Press the search clear button
+    searchTextEdit->clear();
+    QTRY_VERIFY(searchTextEdit->text().isEmpty());
+    QTRY_VERIFY(searchTextEdit->hasFocus());
+
+    // Test tag search
+    searchTextEdit->clear();
+    QTest::keyClicks(searchTextEdit, "tag: testTag");
+    QTRY_VERIFY(m_dbWidget->isSearchActive());
+    QTRY_COMPARE(entryView->model()->rowCount(), 1);
+
     searchTextEdit->clear();
     QTRY_VERIFY(searchTextEdit->text().isEmpty());
     QTRY_VERIFY(searchTextEdit->hasFocus());
@@ -1736,6 +1762,8 @@ void TestGui::addCannedEntries()
     // Add entry "test" and confirm added
     QTest::mouseClick(entryNewWidget, Qt::LeftButton);
     QTest::keyClicks(titleEdit, "test");
+    auto* editEntryWidgetTagsEdit = editEntryWidget->findChild<TagsEdit*>("tagsList");
+    editEntryWidgetTagsEdit->tags(QStringList() << "testTag");
     auto* editEntryWidgetButtonBox = editEntryWidget->findChild<QDialogButtonBox*>("buttonBox");
     QTest::mouseClick(editEntryWidgetButtonBox->button(QDialogButtonBox::Ok), Qt::LeftButton);
 
@@ -1756,7 +1784,7 @@ void TestGui::checkDatabase(const QString& filePath, const QString& expectedDbNa
     auto key = QSharedPointer<CompositeKey>::create();
     key->addKey(QSharedPointer<PasswordKey>::create("a"));
     auto dbSaved = QSharedPointer<Database>::create();
-    QVERIFY(dbSaved->open(filePath, key, nullptr, false));
+    QVERIFY(dbSaved->open(filePath, key, nullptr));
     QCOMPARE(dbSaved->metadata()->name(), expectedDbName);
 }
 

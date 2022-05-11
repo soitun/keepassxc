@@ -297,15 +297,15 @@ namespace FdoSecrets
                     continue;
                 }
                 auto entry = item->backend();
-                if (client->itemKnown(entry->uuid())) {
-                    if (!client->itemAuthorized(entry->uuid())) {
+                auto uuid = entry->uuid();
+                if (client->itemKnown(uuid)) {
+                    if (!client->itemAuthorized(uuid)) {
                         m_numRejected += 1;
                     }
+                    // Already saw this entry
                     continue;
                 }
-                // attach a temporary property so later we can get the item
-                // back from the dialog's result
-                entry->setProperty(FdoSecretsBackend, QVariant::fromValue(item.data()));
+                m_entryToItems[uuid] = item.data();
                 entries << entry;
             }
         }
@@ -317,11 +317,11 @@ namespace FdoSecrets
             connect(ac, &AccessControlDialog::finished, ac, &AccessControlDialog::deleteLater);
             ac->open();
         } else {
-            itemUnlockFinished({});
+            itemUnlockFinished({}, AuthDecision::Undecided);
         }
     }
 
-    void UnlockPrompt::itemUnlockFinished(const QHash<Entry*, AuthDecision>& decisions)
+    void UnlockPrompt::itemUnlockFinished(const QHash<Entry*, AuthDecision>& decisions, AuthDecision forFutureEntries)
     {
         auto client = m_client.lock();
         if (!client) {
@@ -331,19 +331,24 @@ namespace FdoSecrets
         }
         for (auto it = decisions.constBegin(); it != decisions.constEnd(); ++it) {
             auto entry = it.key();
+            auto uuid = entry->uuid();
             // get back the corresponding item
-            auto item = entry->property(FdoSecretsBackend).value<Item*>();
-            entry->setProperty(FdoSecretsBackend, {});
-            Q_ASSERT(item);
+            auto item = m_entryToItems.value(uuid);
+            if (!item) {
+                continue;
+            }
 
             // set auth
-            client->setItemAuthorized(entry->uuid(), it.value());
+            client->setItemAuthorized(uuid, it.value());
 
-            if (client->itemAuthorized(entry->uuid())) {
+            if (client->itemAuthorized(uuid)) {
                 m_unlocked += item->objectPath();
             } else {
                 m_numRejected += 1;
             }
+        }
+        if (forFutureEntries != AuthDecision::Undecided) {
+            client->setAllAuthorized(forFutureEntries);
         }
         // if anything is not unlocked, treat the whole prompt as dismissed
         // so the client has a chance to handle the error

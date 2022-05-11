@@ -21,6 +21,7 @@
 
 #include <QCloseEvent>
 #include <QDesktopServices>
+#include <QDir>
 #include <QFileInfo>
 #include <QList>
 #include <QMimeData>
@@ -43,12 +44,6 @@
 #include "gui/MessageBox.h"
 #include "gui/SearchWidget.h"
 #include "gui/osutils/OSUtils.h"
-
-#ifdef Q_OS_MACOS
-#ifdef WITH_XC_TOUCHID
-#include "touchid/TouchID.h"
-#endif
-#endif
 
 #ifdef WITH_XC_UPDATECHECK
 #include "gui/UpdateCheckDialog.h"
@@ -78,7 +73,7 @@
 #endif
 
 #if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS) && !defined(QT_NO_DBUS)
-#include "gui/MainWindowAdaptor.h"
+#include "mainwindowadaptor.h"
 #endif
 
 const QString MainWindow::BaseWindowTitle = "KeePassXC";
@@ -259,10 +254,6 @@ MainWindow::MainWindow()
 
     m_inactivityTimer = new InactivityTimer(this);
     connect(m_inactivityTimer, SIGNAL(inactivityDetected()), this, SLOT(lockDatabasesAfterInactivity()));
-#ifdef WITH_XC_TOUCHID
-    m_touchIDinactivityTimer = new InactivityTimer(this);
-    connect(m_touchIDinactivityTimer, SIGNAL(inactivityDetected()), this, SLOT(forgetTouchIDAfterInactivity()));
-#endif
     applySettingsChanges();
 
     m_ui->actionDatabaseNew->setShortcut(Qt::CTRL + Qt::SHIFT + Qt::Key_N);
@@ -827,6 +818,7 @@ void MainWindow::setMenuActionState(DatabaseWidget::Mode mode)
             m_ui->actionEntryRestore->setVisible(entriesSelected && recycleBinSelected);
             m_ui->actionEntryRestore->setEnabled(entriesSelected && recycleBinSelected);
             m_ui->actionEntryRestore->setText(tr("Restore Entry(s)", "", dbWidget->numberOfSelectedEntries()));
+            m_ui->actionEntryRestore->setToolTip(tr("Restore Entry(s)", "", dbWidget->numberOfSelectedEntries()));
             m_ui->actionEntryMoveUp->setVisible(!sorted);
             m_ui->actionEntryMoveDown->setVisible(!sorted);
             m_ui->actionEntryMoveUp->setEnabled(singleEntrySelected && !sorted && entryIndex > 0);
@@ -1337,7 +1329,11 @@ bool MainWindow::focusNextPrevChild(bool next)
         // Search Widget <-> Tab Widget <-> DbWidget
         if (next) {
             if (m_searchWidget->hasFocus()) {
-                m_ui->tabWidget->setFocus(Qt::TabFocusReason);
+                if (m_ui->tabWidget->count() > 1) {
+                    m_ui->tabWidget->setFocus(Qt::TabFocusReason);
+                } else {
+                    dbWidget->setFocus(Qt::TabFocusReason);
+                }
             } else if (m_ui->tabWidget->hasFocus()) {
                 dbWidget->setFocus(Qt::TabFocusReason);
             } else {
@@ -1349,7 +1345,11 @@ bool MainWindow::focusNextPrevChild(bool next)
             } else if (m_ui->tabWidget->hasFocus()) {
                 focusSearchWidget();
             } else {
-                m_ui->tabWidget->setFocus(Qt::BacktabFocusReason);
+                if (m_ui->tabWidget->count() > 1) {
+                    m_ui->tabWidget->setFocus(Qt::BacktabFocusReason);
+                } else {
+                    focusSearchWidget();
+                }
             }
         }
         return true;
@@ -1389,7 +1389,7 @@ bool MainWindow::saveLastDatabases()
         QStringList openDatabases;
         for (int i = 0; i < m_ui->tabWidget->count(); ++i) {
             auto dbWidget = m_ui->tabWidget->databaseWidgetFromIndex(i);
-            openDatabases.append(dbWidget->database()->filePath());
+            openDatabases.append(QDir::toNativeSeparators(dbWidget->database()->filePath()));
         }
 
         config()->set(Config::LastOpenedDatabases, openDatabases);
@@ -1528,21 +1528,6 @@ void MainWindow::applySettingsChanges()
     } else {
         m_inactivityTimer->deactivate();
     }
-
-#ifdef WITH_XC_TOUCHID
-    if (config()->get(Config::Security_ResetTouchId).toBool()) {
-        // Calculate TouchID timeout in milliseconds
-        timeout = config()->get(Config::Security_ResetTouchIdTimeout).toInt() * 60 * 1000;
-        if (timeout <= 0) {
-            timeout = 30 * 60 * 1000;
-        }
-
-        m_touchIDinactivityTimer->setInactivityTimeout(timeout);
-        m_touchIDinactivityTimer->activate();
-    } else {
-        m_touchIDinactivityTimer->deactivate();
-    }
-#endif
 
     m_ui->toolBar->setHidden(config()->get(Config::GUI_HideToolbar).toBool());
     m_ui->toolBar->setMovable(config()->get(Config::GUI_MovableToolbar).toBool());
@@ -1707,13 +1692,6 @@ void MainWindow::lockDatabasesAfterInactivity()
     m_ui->tabWidget->lockDatabases();
 }
 
-void MainWindow::forgetTouchIDAfterInactivity()
-{
-#ifdef WITH_XC_TOUCHID
-    TouchID::getInstance().reset();
-#endif
-}
-
 bool MainWindow::isTrayIconEnabled() const
 {
     return m_trayIcon && m_trayIcon->isVisible();
@@ -1770,12 +1748,6 @@ void MainWindow::handleScreenLock()
     if (config()->get(Config::Security_LockDatabaseScreenLock).toBool()) {
         lockDatabasesAfterInactivity();
     }
-
-#ifdef WITH_XC_TOUCHID
-    if (config()->get(Config::Security_ResetTouchIdScreenlock).toBool()) {
-        forgetTouchIDAfterInactivity();
-    }
-#endif
 }
 
 QStringList MainWindow::kdbxFilesFromUrls(const QList<QUrl>& urls)
@@ -1900,11 +1872,6 @@ void MainWindow::initViewMenu()
     connect(m_ui->actionShowToolbar, &QAction::toggled, this, [this](bool checked) {
         config()->set(Config::GUI_HideToolbar, !checked);
         applySettingsChanges();
-    });
-
-    m_ui->actionShowGroupsPanel->setChecked(!config()->get(Config::GUI_HideGroupsPanel).toBool());
-    connect(m_ui->actionShowGroupsPanel, &QAction::toggled, this, [](bool checked) {
-        config()->set(Config::GUI_HideGroupsPanel, !checked);
     });
 
     m_ui->actionShowPreviewPanel->setChecked(!config()->get(Config::GUI_HidePreviewPanel).toBool());

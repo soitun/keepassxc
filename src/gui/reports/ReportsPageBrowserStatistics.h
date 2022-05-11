@@ -1,6 +1,5 @@
 /*
- *  Copyright (C) 2010 Felix Geyer <debfx@fobos.de>
- *  Copyright (C) 2017 KeePassXC Team <team@keepassxc.org>
+ *  Copyright (C) 2021 KeePassXC Team <team@keepassxc.org>
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -16,25 +15,25 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef KEEPASSXC_TESTSIGNATURE_H
-#define KEEPASSXC_TESTSIGNATURE_H
+#ifndef KEEPASSXC_REPORTSPAGEBROWSERSTATISTICS_H
+#define KEEPASSXC_REPORTSPAGEBROWSERSTATISTICS_H
 
-#include <QObject>
+#include "ReportsDialog.h"
 
-class TestSignature : public QObject
+class ReportsWidgetBrowserStatistics;
+
+class ReportsPageBrowserStatistics : public IReportsPage
 {
-    Q_OBJECT
+public:
+    ReportsWidgetBrowserStatistics* m_browserWidget;
 
-private slots:
-    void initTestCase();
+    ReportsPageBrowserStatistics();
 
-    void testSigningOpenSSH_RSA_PrivateOnly();
-    void testSigningOpenSSH_RSA();
-
-    void testSigningGenerated_RSA_PrivateOnly();
-
-    void testSigningTest_RSA_PrivateOnly();
-    void testSigningTest_RSA();
+    QString name() override;
+    QIcon icon() override;
+    QWidget* createWidget() override;
+    void loadSettings(QWidget* widget, QSharedPointer<Database> db) override;
+    void saveSettings(QWidget* widget) override;
 };
 
-#endif // KEEPASSX_TESTSIGNATURE_H
+#endif // KEEPASSXC_REPORTSPAGEBROWSERSTATISTICS_H

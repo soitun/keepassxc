@@ -79,7 +79,7 @@ class Entry : public ModifiableObject
 
 public:
     Entry();
-    ~Entry();
+    ~Entry() override;
     const QUuid& uuid() const;
     const QString uuidToHex() const;
     int iconNumber() const;
@@ -88,6 +88,7 @@ public:
     QString backgroundColor() const;
     QString overrideUrl() const;
     QString tags() const;
+    QStringList tagList() const;
     const TimeInfo& timeInfo() const;
     bool autoTypeEnabled() const;
     int autoTypeObfuscation() const;
@@ -98,6 +99,7 @@ public:
     const AutoTypeAssociations* autoTypeAssociations() const;
     QString title() const;
     QString url() const;
+    QStringList getAllUrls() const;
     QString webUrl() const;
     QString displayUrl() const;
     QString username() const;
@@ -112,12 +114,14 @@ public:
     QUuid previousParentGroupUuid() const;
     int size() const;
     QString path() const;
-    const QSharedPointer<PasswordHealth>& passwordHealth();
+    const QSharedPointer<PasswordHealth> passwordHealth();
+    const QSharedPointer<PasswordHealth> passwordHealth() const;
     bool excludeFromReports() const;
     void setExcludeFromReports(bool state);
 
     bool hasTotp() const;
     bool isExpired() const;
+    bool willExpireInDays(int days) const;
     bool isRecycled() const;
     bool isAttributeReference(const QString& key) const;
     bool isAttributeReferenceOf(const QString& key, const QUuid& uuid) const;

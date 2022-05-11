@@ -58,8 +58,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>664</width>
-            <height>1215</height>
+            <width>564</width>
+            <height>930</height>
            </rect>
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_8">
@@ -234,6 +234,73 @@
                 </item>
                </layout>
               </item>
+              <item>
+               <layout class="QGridLayout" name="showExpiredEntriesSubLayout">
+                <property name="sizeConstraint">
+                 <enum>QLayout::SetMaximumSize</enum>
+                </property>
+                <property name="spacing">
+                 <number>6</number>
+                </property>
+                <item row="0" column="0">
+                 <widget class="QCheckBox" name="showExpiredEntriesOnDatabaseUnlockCheckBox">
+                  <property name="text">
+                   <string>On database unlock, show entries that </string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QSpinBox" name="showExpiredEntriesOnDatabaseUnlockOffsetSpinBox">
+                  <property name="enabled">
+                   <bool>true</bool>
+                  </property>
+                  <property name="sizePolicy">
+                   <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                    <horstretch>0</horstretch>
+                    <verstretch>0</verstretch>
+                   </sizepolicy>
+                  </property>
+                  <property name="focusPolicy">
+                   <enum>Qt::StrongFocus</enum>
+                  </property>
+                  <property name="accessibleName">
+                   <string>On database unlock, show entries that </string>
+                  </property>
+                  <property name="specialValueText">
+                   <string comment="On database unlock, show entries that...">have expired</string>
+                  </property>
+                  <property name="suffix">
+                   <string comment="On database unlock, show entries that will expire within %1 days"> days</string>
+                  </property>
+                  <property name="prefix">
+                   <string comment="On database unlock, show entries that...">will expire within </string>
+                  </property>
+                  <property name="minimum">
+                   <number>0</number>
+                  </property>
+                  <property name="maximum">
+                   <number>30</number>
+                  </property>
+                  <property name="value">
+                   <number>0</number>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="2">
+                 <spacer name="showExpiredEntriesSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
              </layout>
             </widget>
            </item>
@@ -302,7 +369,7 @@
                    <bool>false</bool>
                   </property>
                   <property name="toolTip">
-                   <string>Specifies the database backup file location. Occurences of &quot;{DB_FILENAME}&quot; are replaced with the filename of the saved database without extension. {TIME:&lt;format&gt;} is replaced with the backup time, see https://doc.qt.io/qt-5/qdatetime.html#toString. &lt;format&gt; defaults to format string &quot;dd_MM_yyyy_hh-mm-ss&quot;.</string>
+                   <string>Specifies the database backup file location. Occurrences of &quot;{DB_FILENAME}&quot; are replaced with the filename of the saved database without extension. {TIME:&lt;format&gt;} is replaced with the backup time, see https://doc.qt.io/qt-5/qdatetime.html#toString. &lt;format&gt; defaults to format string &quot;dd_MM_yyyy_hh-mm-ss&quot;.</string>
                   </property>
                   <property name="placeholderText">
                    <string>{DB_FILENAME}.old.kdbx</string>
@@ -954,6 +1021,13 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="autoTypeRelockDatabaseCheckBox">
+         <property name="text">
+          <string>Re-lock previously locked database after performing Auto-Type</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="verticalSpacer_4">
          <property name="orientation">
           <enum>Qt::Vertical</enum>
@@ -978,57 +1052,32 @@
           <number>8</number>
          </property>
          <item row="2" column="0">
-          <widget class="QLabel" name="autoTypeDelayLabel">
+          <widget class="QLabel" name="autoTypeStartDelayLabel">
            <property name="text">
-            <string>Auto-Type typing delay:</string>
+            <string>Auto-Type start delay:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
            <property name="buddy">
-            <cstring>autoTypeDelaySpinBox</cstring>
+            <cstring>autoTypeStartDelaySpinBox</cstring>
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="ShortcutWidget" name="autoTypeShortcutWidget">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
+         <item row="0" column="0">
+          <widget class="QLabel" name="autoTypeShortcutLabel">
+           <property name="text">
+            <string>Global Auto-Type shortcut:</string>
            </property>
-           <property name="accessibleName">
-            <string>Global auto-type shortcut</string>
+           <property name="alignment">
+            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+           </property>
+           <property name="buddy">
+            <cstring>autoTypeShortcutWidget</cstring>
            </property>
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QSpinBox" name="autoTypeDelaySpinBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="accessibleName">
-            <string>Auto-type character typing delay milliseconds</string>
-           </property>
-           <property name="suffix">
-            <string comment="Milliseconds"> ms</string>
-           </property>
-           <property name="prefix">
-            <string/>
-           </property>
-           <property name="maximum">
-            <number>1000</number>
-           </property>
-           <property name="value">
-            <number>25</number>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
           <widget class="QSpinBox" name="autoTypeStartDelaySpinBox">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1059,29 +1108,16 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="autoTypeShortcutLabel">
+         <item row="3" column="0">
+          <widget class="QLabel" name="autoTypeDelayLabel">
            <property name="text">
-            <string>Global Auto-Type shortcut:</string>
+            <string>Auto-Type typing delay:</string>
            </property>
            <property name="alignment">
             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
            </property>
            <property name="buddy">
-            <cstring>autoTypeShortcutWidget</cstring>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="autoTypeStartDelayLabel">
-           <property name="text">
-            <string>Auto-Type start delay:</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-           </property>
-           <property name="buddy">
-            <cstring>autoTypeStartDelaySpinBox</cstring>
+            <cstring>autoTypeDelaySpinBox</cstring>
            </property>
           </widget>
          </item>
@@ -1097,6 +1133,67 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item row="0" column="1">
+          <widget class="ShortcutWidget" name="autoTypeShortcutWidget">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="accessibleName">
+            <string>Global auto-type shortcut</string>
+           </property>
+          </widget>
+         </item>
+         <item row="3" column="1">
+          <widget class="QSpinBox" name="autoTypeDelaySpinBox">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="accessibleName">
+            <string>Auto-type character typing delay milliseconds</string>
+           </property>
+           <property name="suffix">
+            <string comment="Milliseconds"> ms</string>
+           </property>
+           <property name="prefix">
+            <string/>
+           </property>
+           <property name="maximum">
+            <number>1000</number>
+           </property>
+           <property name="value">
+            <number>25</number>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="autoTypeRetypeLabel">
+           <property name="text">
+            <string>Remember last typed entry for:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QSpinBox" name="autoTypeRetypeTimeSpinBox">
+           <property name="suffix">
+            <string comment="Seconds"> sec</string>
+           </property>
+           <property name="minimum">
+            <number>0</number>
+           </property>
+           <property name="maximum">
+            <number>60</number>
+           </property>
+           <property name="value">
+            <number>15</number>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
@@ -1138,6 +1235,8 @@
   <tabstop>rememberLastKeyFilesCheckBox</tabstop>
   <tabstop>checkForUpdatesOnStartupCheckBox</tabstop>
   <tabstop>checkForUpdatesIncludeBetasCheckBox</tabstop>
+  <tabstop>showExpiredEntriesOnDatabaseUnlockCheckBox</tabstop>
+  <tabstop>showExpiredEntriesOnDatabaseUnlockOffsetSpinBox</tabstop>
   <tabstop>autoSaveAfterEveryChangeCheckBox</tabstop>
   <tabstop>autoSaveOnExitCheckBox</tabstop>
   <tabstop>autoSaveNonDataChangesCheckBox</tabstop>

@@ -21,6 +21,7 @@
 
 #include "core/Global.h"
 
+#include <QDateTime>
 #include <QProcessEnvironment>
 
 class QIODevice;
@@ -30,6 +31,7 @@ namespace Tools
 {
     QString debugInfo();
     QString humanReadableFileSize(qint64 bytes, quint32 precision = 2);
+    QString humanReadableTimeDifference(qint64 seconds);
     bool readFromDevice(QIODevice* device, QByteArray& data, int size = 16384);
     bool readAllFromDevice(QIODevice* device, QByteArray& data);
     bool isHex(const QByteArray& ba);
@@ -40,12 +42,22 @@ namespace Tools
     QString uuidToHex(const QUuid& uuid);
     QUuid hexToUuid(const QString& uuid);
     bool isValidUuid(const QString& uuidStr);
-    QRegularExpression convertToRegex(const QString& string,
-                                      bool useWildcards = false,
-                                      bool exactMatch = false,
-                                      bool caseSensitive = false);
     QString envSubstitute(const QString& filepath,
                           QProcessEnvironment environment = QProcessEnvironment::systemEnvironment());
+
+    enum RegexConvertOpts
+    {
+        DEFAULT = 0,
+        WILDCARD_UNLIMITED_MATCH = 0x1,
+        WILDCARD_SINGLE_MATCH = 0x2,
+        WILDCARD_LOGICAL_OR = 0x4,
+        WILDCARD_ALL = WILDCARD_UNLIMITED_MATCH | WILDCARD_SINGLE_MATCH | WILDCARD_LOGICAL_OR,
+        EXACT_MATCH = 0x8,
+        CASE_SENSITIVE = 0x16,
+        ESCAPE_REGEX = 0x32,
+    };
+
+    QRegularExpression convertToRegex(const QString& string, int opts = RegexConvertOpts::DEFAULT);
 
     template <typename RandomAccessIterator, typename T>
     RandomAccessIterator binaryFind(RandomAccessIterator begin, RandomAccessIterator end, const T& value)

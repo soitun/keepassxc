@@ -25,18 +25,21 @@ QCheckBox, QRadioButton {
     spacing: 10px;
 }
 
-DatabaseWidget, GroupView {
+DatabaseWidget, DatabaseWidget #groupView, DatabaseWidget #tagView {
     background-color: palette(window);
     border: none;
 }
 
-EntryPreviewWidget QLineEdit, EntryPreviewWidget QTextEdit {
+EntryPreviewWidget QLineEdit, EntryPreviewWidget QTextEdit,
+EntryPreviewWidget TagsEdit
+{
     background-color: palette(window);
     border: none;
+    padding-left: 0px;
 }
 
-DatabaseOpenWidget #loginFrame {
-    border: 2px groove palette(mid);
+DatabaseOpenWidget #centralStack {
+    border: 1px solid palette(mid);
     background: palette(light);
 }
 
@@ -72,4 +75,8 @@ QPlainTextEdit, QTextEdit {
 
 QStatusBar {
     background-color: palette(window);
+}
+
+*[title="true"] {
+    font-weight: bold;
 }
